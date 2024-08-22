@@ -38,16 +38,21 @@ public class PaymentServiceImpl implements PaymentService {
             Booking booking = bookingRepository.findById(paymentRequest.getBookingId())
                     .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
             paymentBuilder.booking(booking);
+
             booking.setPaymentstatus("PAID");
             bookingRepository.save(booking);
+
         }
 
         if (paymentRequest.getServiceBookingId() != null && isEnoughMoney(paymentRequest)) {
             ServiceBooking serviceBooking = serviceBookingRepository.findById(paymentRequest.getServiceBookingId())
                     .orElseThrow(() -> new ResourceNotFoundException("Service booking not found"));
             paymentBuilder.serviceBooking(serviceBooking);
-            // Assume ServiceBooking has a paymentStatus field
+
+
             serviceBooking.setPaymentStatus("PAID");
+
+
             serviceBookingRepository.save(serviceBooking);
         }
 

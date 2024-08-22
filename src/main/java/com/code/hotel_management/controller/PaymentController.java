@@ -4,15 +4,12 @@ import com.code.hotel_management.dto.request.PaymentRequestDTO;
 import com.code.hotel_management.dto.response.PaymentDetailResponse;
 import com.code.hotel_management.dto.response.ResponseData;
 import com.code.hotel_management.dto.response.ResponseError;
-import com.code.hotel_management.dto.response.UserDetailResponse;
 import com.code.hotel_management.exception.ResourceNotFoundException;
-import com.code.hotel_management.model.Payment;
 import com.code.hotel_management.service.PaymentService;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,9 +22,19 @@ public class PaymentController {
     private final PaymentService paymentService;
 
     @PostMapping("/")
-    public ResponseEntity<Payment> createPayment(@RequestBody PaymentRequestDTO paymentRequest) {
-        Payment payment = paymentService.createPayment(paymentRequest);
-        return ResponseEntity.status(HttpStatus.CREATED).body(payment);
+    public ResponseData<PaymentDetailResponse> createPayment(@RequestBody PaymentRequestDTO paymentRequest) {
+        log.info("Request payment ");
+
+        try {
+            paymentService.createPayment(paymentRequest);
+            if (paymentService.isEnoughMoney(paymentRequest)) {
+                return new ResponseData<>(HttpStatus.ACCEPTED.value(), "Payment success");
+            }
+            return new ResponseData<>(HttpStatus.ACCEPTED.value(), "not enough money");
+        } catch (Exception e) {
+            log.error("errorMessage={}", e.getMessage(), e.getCause());
+            return new ResponseError(HttpStatus.BAD_REQUEST.value(), "request fail");
+        }
     }
 
 //    @GetMapping("/{paymentId}")

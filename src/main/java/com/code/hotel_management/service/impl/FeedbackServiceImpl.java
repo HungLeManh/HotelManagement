@@ -1,6 +1,7 @@
 package com.code.hotel_management.service.impl;
 
 import com.code.hotel_management.dto.request.FeedbackRequestDTO;
+import com.code.hotel_management.dto.response.FeedbackDetailResponse;
 import com.code.hotel_management.exception.ResourceNotFoundException;
 import com.code.hotel_management.model.Booking;
 import com.code.hotel_management.model.Feedback;
@@ -50,8 +51,16 @@ public class FeedbackServiceImpl implements FeedbackService {
     }
 
     @Override
-    public Feedback getFeedback(Long feedbackId) {
-        return feedbackRepository.findById(feedbackId)
-                .orElseThrow(() -> new ResourceNotFoundException("Feedback not found"));
+    public FeedbackDetailResponse getFeedback(Long feedbackId) {
+        Feedback feedback = feedbackRepository.findById(feedbackId)
+                .orElseThrow(() -> new ResourceNotFoundException("feedback not found"));
+        return FeedbackDetailResponse.builder()
+                .feedbackid(feedback.getFeedbackid())
+                .userid(feedback.getUser().getUserID())
+                .name(feedback.getUser().getName())
+                .bookingid(feedback.getBooking().getBookingId())
+                .rating(feedback.getRating())
+                .comments(feedback.getComments())
+                .build();
     }
 }

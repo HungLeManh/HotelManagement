@@ -13,8 +13,9 @@ import java.util.List;
 public interface BookingService {
      Booking createBooking(Long userId, List<Long> roomIds, Date checkinDate, Date checkoutDate);
 
-     boolean areRoomsAvailableAndEmpty(List<Room> rooms, Date checkinDate, Date checkoutDate);
+//     boolean areRoomsAvailableAndEmpty(List<Room> rooms, Date checkinDate, Date checkoutDate);
 
+     boolean areRoomsAvailableAndEmpty(List<Long> roomIds, Date checkinDate, Date checkoutDate);
      BigDecimal calculateTotalMoney(List<Room> rooms, Date checkinDate, Date checkoutDate);
 
      void checkoutBooking(Long bookingId);

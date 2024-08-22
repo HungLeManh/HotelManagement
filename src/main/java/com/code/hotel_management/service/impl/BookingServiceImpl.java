@@ -43,9 +43,19 @@ public class BookingServiceImpl implements BookingService {
             throw new ResourceNotFoundException("One or more rooms not found");
         }
 
-        if (!areRoomsAvailableAndEmpty(rooms, checkinDate, checkoutDate)) {
+        long countRoom = roomRepository.countAvailableRooms(roomIds, checkinDate, checkoutDate);
+
+        System.out.println(countRoom);
+
+        if (!areRoomsAvailableAndEmpty(roomIds, checkinDate, checkoutDate)) {
             throw new IllegalStateException("One or more rooms are not available or not empty for the selected dates");
         }
+
+//        Room room1 = rooms.get(0);
+//        Booking booking1 = getBookingById(room1.getBookingId());
+//        if(checkoutDate.before(booking1.getCheckindate())){
+//            throw new RuntimeException("please create checkoutDate after" + booking1.getCheckindate() );
+//        }
 
         BigDecimal totalMoney = calculateTotalMoney(rooms, checkinDate, checkoutDate);
 
@@ -65,6 +75,8 @@ public class BookingServiceImpl implements BookingService {
 
         // Cập nhật bookingId cho các phòng
         Booking finalBooking = booking;
+
+
         if(checkinDate.equals(currentDate) || checkinDate.before(currentDate)){
             rooms.forEach(room -> {
                 room.setStatus(RoomStatus.FULL);
@@ -77,13 +89,17 @@ public class BookingServiceImpl implements BookingService {
         return booking;
     }
 
-    @Override
-    public boolean areRoomsAvailableAndEmpty(List<Room> rooms, Date checkinDate, Date checkoutDate) {
-        List<Long> roomIds = rooms.stream().map(Room::getRoomid).collect(Collectors.toList());
-        List<Booking> overlappingBookings = bookingRepository.findOverlappingBookings(roomIds, checkinDate, checkoutDate);
+//    @Override
+//    public boolean areRoomsAvailableAndEmpty(List<Room> rooms, Date checkinDate, Date checkoutDate) {
+//        List<Long> roomIds = rooms.stream().map(Room::getRoomid).collect(Collectors.toList());
+//        List<Booking> overlappingBookings = bookingRepository.findOverlappingBookings(roomIds, checkinDate, checkoutDate);
+//
+//        return overlappingBookings.isEmpty() &&
+//                rooms.stream().allMatch(room -> room.getStatus() == RoomStatus.EMPTY);
+//    }
 
-        return overlappingBookings.isEmpty() &&
-                rooms.stream().allMatch(room -> room.getStatus() == RoomStatus.EMPTY);
+    public boolean areRoomsAvailableAndEmpty(List<Long> roomIds, Date checkinDate, Date checkoutDate) {
+        return roomRepository.countAvailableRooms(roomIds, checkinDate, checkoutDate) == roomIds.size();
     }
 
     @Override
