@@ -50,7 +50,7 @@ public class UserController {
         try {
             if(userService.login(user)){
                 return new ResponseData<>(HttpStatus.CREATED.value(), "login success", user.getUsername());
-            }else return new ResponseData<>(HttpStatus.CREATED.value(), "login fail");
+            }else return new ResponseData<>(HttpStatus.CREATED.value(), "incorrect password or userName");
         } catch (Exception e) {
             log.error("errorMessage={}", e.getMessage(), e.getCause());
             return new ResponseError(HttpStatus.BAD_REQUEST.value(), "Login fail");

@@ -65,9 +65,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void updateUser(long userID, UserRequestDTO requestDTO) {
+        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
         User user = getUserById(userID);
         user.setName(requestDTO.getName());
-        user.setPassword(requestDTO.getPassword());
+        user.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
         user.setAddress(requestDTO.getAddress());
         user.setPhone(requestDTO.getPhone());
         user.setEmail(requestDTO.getEmail());

@@ -49,12 +49,14 @@ public class BookingServiceImpl implements BookingService {
 
         BigDecimal totalMoney = calculateTotalMoney(rooms, checkinDate, checkoutDate);
 
+        Date currentDate= new Date();
+
         Booking booking = Booking.builder()
                 .user(user)
                 .rooms(rooms)
                 .checkindate(checkinDate)
                 .checkoutdate(checkoutDate)
-                .bookingdate(new Date())
+                .bookingdate(currentDate)
                 .totalmoney(totalMoney)
                 .paymentstatus("PENDING")
                 .build();
@@ -63,10 +65,13 @@ public class BookingServiceImpl implements BookingService {
 
         // Cập nhật bookingId cho các phòng
         Booking finalBooking = booking;
-        rooms.forEach(room -> {
-            room.setStatus(RoomStatus.FULL);
-            room.setBookingId(finalBooking.getBookingId());
-        });
+        if(checkinDate.equals(currentDate) || checkinDate.before(currentDate)){
+            rooms.forEach(room -> {
+                room.setStatus(RoomStatus.FULL);
+                room.setBookingId(finalBooking.getBookingId());
+            });
+        }
+
         roomRepository.saveAll(rooms);
 
         return booking;
