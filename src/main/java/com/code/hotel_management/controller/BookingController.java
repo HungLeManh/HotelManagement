@@ -33,13 +33,15 @@ public class BookingController {
     // booking
     @PostMapping("/")
     public ResponseData<?> createBooking(@Valid @RequestBody BookingRequestDTO bookingRequest) {
-        Booking booking = bookingService.createBooking(
-                bookingRequest.getUserId(),
-                bookingRequest.getRoomIds(),
-                bookingRequest.getCheckinDate(),
-                bookingRequest.getCheckoutDate()
-        );
-        return new ResponseData<>(HttpStatus.CREATED.value(), "booking success");
+        log.info("Request booking");
+
+        try {
+            Booking booking = bookingService.createBooking(bookingRequest);
+            return new ResponseData<>(HttpStatus.CREATED.value(), "booking success");
+        } catch (Exception e) {
+            log.error("errorMessage={}", e.getMessage(), e.getCause());
+            return new ResponseError(HttpStatus.BAD_REQUEST.value(), "One or more rooms are not available");
+        }
     }
 
     // get booking detail

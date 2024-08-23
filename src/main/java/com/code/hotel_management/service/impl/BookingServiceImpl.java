@@ -1,5 +1,6 @@
 package com.code.hotel_management.service.impl;
 
+import com.code.hotel_management.dto.request.BookingRequestDTO;
 import com.code.hotel_management.dto.response.BookingDetailResponse;
 import com.code.hotel_management.exception.ResourceNotFoundException;
 import com.code.hotel_management.model.Booking;
@@ -12,6 +13,9 @@ import com.code.hotel_management.service.BookingService;
 import com.code.hotel_management.service.PDFGeneratorService;
 import com.code.hotel_management.util.RoomStatus;
 import com.itextpdf.text.DocumentException;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.ParameterMode;
+import jakarta.persistence.StoredProcedureQuery;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,57 +36,61 @@ public class BookingServiceImpl implements BookingService {
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
     private final RoomRepository roomRepository;
+    private final EntityManager entityManager;
     @Override
     @Transactional
-    public Booking createBooking(Long userId, List<Long> roomIds, Date checkinDate, Date checkoutDate) {
+    public Booking createBooking(BookingRequestDTO requestDTO) {
+        Long userId = requestDTO.getUserId();
+        List<Long> roomIds = requestDTO.getRoomIds();
+        Date checkinDate =requestDTO.getCheckinDate();
+        Date checkoutDate = requestDTO.getCheckoutDate();
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         List<Room> rooms = roomRepository.findAllById(roomIds);
-        if (rooms.size() != roomIds.size()) {
-            throw new ResourceNotFoundException("One or more rooms not found");
-        }
 
-        long countRoom = roomRepository.countAvailableRooms(roomIds, checkinDate, checkoutDate);
-
-        System.out.println(countRoom);
-
+        // Check if rooms are available
         if (!areRoomsAvailableAndEmpty(roomIds, checkinDate, checkoutDate)) {
-            throw new IllegalStateException("One or more rooms are not available or not empty for the selected dates");
+            throw new RuntimeException("One or more rooms are not available for the selected dates.");
         }
 
-//        Room room1 = rooms.get(0);
-//        Booking booking1 = getBookingById(room1.getBookingId());
-//        if(checkoutDate.before(booking1.getCheckindate())){
-//            throw new RuntimeException("please create checkoutDate after" + booking1.getCheckindate() );
-//        }
-
+        // Calculate total money
         BigDecimal totalMoney = calculateTotalMoney(rooms, checkinDate, checkoutDate);
 
-        Date currentDate= new Date();
+        // Call stored procedure
+        StoredProcedureQuery query = entityManager.createStoredProcedureQuery("create_booking")
+                .registerStoredProcedureParameter("p_user_id", Long.class, ParameterMode.IN)
+                .registerStoredProcedureParameter("p_room_ids", Long[].class, ParameterMode.IN)
+                .registerStoredProcedureParameter("p_checkin_date", Date.class, ParameterMode.IN)
+                .registerStoredProcedureParameter("p_checkout_date", Date.class, ParameterMode.IN)
+                .registerStoredProcedureParameter("p_total_money", BigDecimal.class, ParameterMode.IN)
+                .registerStoredProcedureParameter("p_booking_id", Long.class, ParameterMode.OUT)
+                .setParameter("p_user_id", userId)
+                .setParameter("p_room_ids", roomIds.toArray(new Long[0]))
+                .setParameter("p_checkin_date", checkinDate)
+                .setParameter("p_checkout_date", checkoutDate)
+                .setParameter("p_total_money", totalMoney);
+        query.execute();
+
+        Long bookingId = (Long) query.getOutputParameterValue("p_booking_id");
 
         Booking booking = Booking.builder()
                 .user(user)
                 .rooms(rooms)
                 .checkindate(checkinDate)
                 .checkoutdate(checkoutDate)
-                .bookingdate(currentDate)
+                .bookingdate(new Date())
                 .totalmoney(totalMoney)
                 .paymentstatus("PENDING")
                 .build();
 
-        booking = bookingRepository.save(booking);
-
         // Cập nhật bookingId cho các phòng
-        Booking finalBooking = booking;
-
-
-        if(checkinDate.equals(currentDate) || checkinDate.before(currentDate)){
-            rooms.forEach(room -> {
-                room.setStatus(RoomStatus.FULL);
-                room.setBookingId(finalBooking.getBookingId());
-            });
-        }
+//        Booking finalBooking = booking;
+//
+        rooms.forEach(room -> {
+            room.setStatus(RoomStatus.FULL);
+            room.setBookingId(bookingId);
+        });
 
         roomRepository.saveAll(rooms);
 

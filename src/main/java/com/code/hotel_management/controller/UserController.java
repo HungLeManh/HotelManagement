@@ -97,7 +97,7 @@ public class UserController {
 
     @GetMapping("/list")
     public ResponseData<List<UserDetailResponse>> getAllUser(@RequestParam(defaultValue = "0", required = false) int pageNo,
-                                                         @Min(10) @RequestParam(defaultValue = "20", required = false) int pageSize) {
+                                                         @Min(1) @RequestParam(defaultValue = "5", required = false) int pageSize) {
         log.info("Request get all of users");
         return new ResponseData<>(HttpStatus.OK.value(), "users", userService.getAllUsers(pageNo, pageSize));
     }

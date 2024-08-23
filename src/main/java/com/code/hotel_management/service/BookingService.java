@@ -1,5 +1,6 @@
 package com.code.hotel_management.service;
 
+import com.code.hotel_management.dto.request.BookingRequestDTO;
 import com.code.hotel_management.dto.response.BookingDetailResponse;
 import com.code.hotel_management.model.Booking;
 import com.code.hotel_management.model.Room;
@@ -11,9 +12,7 @@ import java.util.Date;
 import java.util.List;
 
 public interface BookingService {
-     Booking createBooking(Long userId, List<Long> roomIds, Date checkinDate, Date checkoutDate);
-
-//     boolean areRoomsAvailableAndEmpty(List<Room> rooms, Date checkinDate, Date checkoutDate);
+     Booking createBooking(BookingRequestDTO requestDTO);
 
      boolean areRoomsAvailableAndEmpty(List<Long> roomIds, Date checkinDate, Date checkoutDate);
      BigDecimal calculateTotalMoney(List<Room> rooms, Date checkinDate, Date checkoutDate);
