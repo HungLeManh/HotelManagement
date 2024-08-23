@@ -4,9 +4,11 @@ import com.code.hotel_management.dto.request.BookingRequestDTO;
 import com.code.hotel_management.dto.response.BookingDetailResponse;
 import com.code.hotel_management.exception.ResourceNotFoundException;
 import com.code.hotel_management.model.Booking;
+import com.code.hotel_management.model.Promotion;
 import com.code.hotel_management.model.Room;
 import com.code.hotel_management.model.User;
 import com.code.hotel_management.repository.BookingRepository;
+import com.code.hotel_management.repository.PromotionRepository;
 import com.code.hotel_management.repository.RoomRepository;
 import com.code.hotel_management.repository.UserRepository;
 import com.code.hotel_management.service.BookingService;
@@ -36,6 +38,7 @@ public class BookingServiceImpl implements BookingService {
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
     private final RoomRepository roomRepository;
+    private final PromotionRepository promotionRepository;
     private final EntityManager entityManager;
     @Override
     @Transactional
@@ -49,6 +52,7 @@ public class BookingServiceImpl implements BookingService {
 
         List<Room> rooms = roomRepository.findAllById(roomIds);
 
+
         // Check if rooms are available
         if (!areRoomsAvailableAndEmpty(roomIds, checkinDate, checkoutDate)) {
             throw new RuntimeException("One or more rooms are not available for the selected dates.");
@@ -58,21 +62,21 @@ public class BookingServiceImpl implements BookingService {
         BigDecimal totalMoney = calculateTotalMoney(rooms, checkinDate, checkoutDate);
 
         // Call stored procedure
-        StoredProcedureQuery query = entityManager.createStoredProcedureQuery("create_booking")
-                .registerStoredProcedureParameter("p_user_id", Long.class, ParameterMode.IN)
-                .registerStoredProcedureParameter("p_room_ids", Long[].class, ParameterMode.IN)
-                .registerStoredProcedureParameter("p_checkin_date", Date.class, ParameterMode.IN)
-                .registerStoredProcedureParameter("p_checkout_date", Date.class, ParameterMode.IN)
-                .registerStoredProcedureParameter("p_total_money", BigDecimal.class, ParameterMode.IN)
-                .registerStoredProcedureParameter("p_booking_id", Long.class, ParameterMode.OUT)
-                .setParameter("p_user_id", userId)
-                .setParameter("p_room_ids", roomIds.toArray(new Long[0]))
-                .setParameter("p_checkin_date", checkinDate)
-                .setParameter("p_checkout_date", checkoutDate)
-                .setParameter("p_total_money", totalMoney);
-        query.execute();
-
-        Long bookingId = (Long) query.getOutputParameterValue("p_booking_id");
+//        StoredProcedureQuery query = entityManager.createStoredProcedureQuery("create_booking")
+//                .registerStoredProcedureParameter("p_user_id", Long.class, ParameterMode.IN)
+//                .registerStoredProcedureParameter("p_room_ids", Long[].class, ParameterMode.IN)
+//                .registerStoredProcedureParameter("p_checkin_date", Date.class, ParameterMode.IN)
+//                .registerStoredProcedureParameter("p_checkout_date", Date.class, ParameterMode.IN)
+//                .registerStoredProcedureParameter("p_total_money", BigDecimal.class, ParameterMode.IN)
+//                .registerStoredProcedureParameter("p_booking_id", Long.class, ParameterMode.OUT)
+//                .setParameter("p_user_id", userId)
+//                .setParameter("p_room_ids", roomIds.toArray(new Long[0]))
+//                .setParameter("p_checkin_date", checkinDate)
+//                .setParameter("p_checkout_date", checkoutDate)
+//                .setParameter("p_total_money", totalMoney);
+//        query.execute();
+//
+//        Long bookingId = (Long) query.getOutputParameterValue("p_booking_id");
 
         Booking booking = Booking.builder()
                 .user(user)
@@ -84,12 +88,24 @@ public class BookingServiceImpl implements BookingService {
                 .paymentstatus("PENDING")
                 .build();
 
+        List<Promotion> validPromotions = promotionRepository.findByStartDateLessThanEqualAndEndDateGreaterThanEqual(booking.getBookingdate(), booking.getBookingdate());
+        if (!validPromotions.isEmpty()) {
+            Promotion applicablePromotion = validPromotions.get(0); // Assuming we apply the first valid promotion
+            booking.setPromotion(applicablePromotion);
+
+            BigDecimal newTotalMoney = totalMoney.subtract(totalMoney.multiply(applicablePromotion.getDiscountRate()));
+
+            booking.setTotalmoney(newTotalMoney);
+        }
+
+        bookingRepository.save(booking);
+
         // Cập nhật bookingId cho các phòng
 //        Booking finalBooking = booking;
 //
         rooms.forEach(room -> {
             room.setStatus(RoomStatus.FULL);
-            room.setBookingId(bookingId);
+            room.setBookingId(booking.getBookingId());
         });
 
         roomRepository.saveAll(rooms);
