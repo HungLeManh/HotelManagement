@@ -12,9 +12,11 @@ import com.code.hotel_management.repository.PromotionRepository;
 import com.code.hotel_management.repository.RoomRepository;
 import com.code.hotel_management.repository.UserRepository;
 import com.code.hotel_management.service.BookingService;
+import com.code.hotel_management.service.EmailService;
 import com.code.hotel_management.service.PDFGeneratorService;
 import com.code.hotel_management.util.RoomStatus;
 import com.itextpdf.text.DocumentException;
+import jakarta.mail.MessagingException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.ParameterMode;
 import jakarta.persistence.StoredProcedureQuery;
@@ -40,6 +42,7 @@ public class BookingServiceImpl implements BookingService {
     private final RoomRepository roomRepository;
     private final PromotionRepository promotionRepository;
     private final EntityManager entityManager;
+    private final EmailService emailService;
     @Override
     @Transactional
     public Booking createBooking(BookingRequestDTO requestDTO) {
@@ -101,8 +104,6 @@ public class BookingServiceImpl implements BookingService {
         bookingRepository.save(booking);
 
         // Cập nhật bookingId cho các phòng
-//        Booking finalBooking = booking;
-//
         rooms.forEach(room -> {
             room.setStatus(RoomStatus.FULL);
             room.setBookingId(booking.getBookingId());
@@ -110,17 +111,48 @@ public class BookingServiceImpl implements BookingService {
 
         roomRepository.saveAll(rooms);
 
+        Booking savedBooking = bookingRepository.save(booking);
+
+        // Send confirmation email
+        try {
+            sendBookingConfirmationEmail(savedBooking);
+        } catch (MessagingException e) {
+            log.error("Failed to send booking confirmation email", e);
+        }
+
         return booking;
     }
 
-//    @Override
-//    public boolean areRoomsAvailableAndEmpty(List<Room> rooms, Date checkinDate, Date checkoutDate) {
-//        List<Long> roomIds = rooms.stream().map(Room::getRoomid).collect(Collectors.toList());
-//        List<Booking> overlappingBookings = bookingRepository.findOverlappingBookings(roomIds, checkinDate, checkoutDate);
-//
-//        return overlappingBookings.isEmpty() &&
-//                rooms.stream().allMatch(room -> room.getStatus() == RoomStatus.EMPTY);
-//    }
+
+    private void sendBookingConfirmationEmail(Booking booking) throws MessagingException {
+        String to = booking.getUser().getEmail(); // Assuming User has an email field
+        String subject = "Booking Confirmation - Booking ID: " + booking.getBookingId();
+        String content = buildEmailContent(booking);
+
+        emailService.sendBookingConfirmationEmail(to, subject, content);
+    }
+
+    private String buildEmailContent(Booking booking) {
+        StringBuilder content = new StringBuilder();
+        content.append("<h1>Booking Confirmation</h1>");
+        content.append("<p>Dear ").append(booking.getUser().getName()).append(",</p>");
+        content.append("<p>Your booking has been confirmed. Details are as follows:</p>");
+        content.append("<ul>");
+        content.append("<li>Booking ID: ").append(booking.getBookingId()).append("</li>");
+        content.append("<li>Check-in Date: ").append(booking.getCheckindate()).append("</li>");
+        content.append("<li>Check-out Date: ").append(booking.getCheckoutdate()).append("</li>");
+        content.append("<li>Promotion: ").append(booking.getPromotion()).append("</li>");
+        content.append("<li>Total Amount: $").append(booking.getTotalmoney()).append("</li>");
+        content.append("</ul>");
+        content.append("<h2>Booked Rooms:</h2>");
+        content.append("<ul>");
+        for (Room room : booking.getRooms()) {
+            content.append("<li>Room ").append(room.getRoomid()).append(" - $").append(room.getPrice()).append(" per night</li>");
+        }
+        content.append("</ul>");
+        content.append("<p>Thank you for choosing our hotel!</p>");
+        return content.toString();
+    }
 
     public boolean areRoomsAvailableAndEmpty(List<Long> roomIds, Date checkinDate, Date checkoutDate) {
         return roomRepository.countAvailableRooms(roomIds, checkinDate, checkoutDate) == roomIds.size();
