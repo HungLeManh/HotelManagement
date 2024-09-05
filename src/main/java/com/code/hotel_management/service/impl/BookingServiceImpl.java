@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -64,23 +65,6 @@ public class BookingServiceImpl implements BookingService {
 
         // Calculate total money
         BigDecimal totalMoney = calculateTotalMoney(rooms, checkinDate, checkoutDate);
-
-        // Call stored procedure
-//        StoredProcedureQuery query = entityManager.createStoredProcedureQuery("create_booking")
-//                .registerStoredProcedureParameter("p_user_id", Long.class, ParameterMode.IN)
-//                .registerStoredProcedureParameter("p_room_ids", Long[].class, ParameterMode.IN)
-//                .registerStoredProcedureParameter("p_checkin_date", Date.class, ParameterMode.IN)
-//                .registerStoredProcedureParameter("p_checkout_date", Date.class, ParameterMode.IN)
-//                .registerStoredProcedureParameter("p_total_money", BigDecimal.class, ParameterMode.IN)
-//                .registerStoredProcedureParameter("p_booking_id", Long.class, ParameterMode.OUT)
-//                .setParameter("p_user_id", userId)
-//                .setParameter("p_room_ids", roomIds.toArray(new Long[0]))
-//                .setParameter("p_checkin_date", checkinDate)
-//                .setParameter("p_checkout_date", checkoutDate)
-//                .setParameter("p_total_money", totalMoney);
-//        query.execute();
-//
-//        Long bookingId = (Long) query.getOutputParameterValue("p_booking_id");
 
         Booking booking = Booking.builder()
                 .user(user)
@@ -266,6 +250,32 @@ public class BookingServiceImpl implements BookingService {
     public byte[] generateBookingInvoice(Long bookingId) throws IOException, DocumentException {
         BookingDetailResponse bookingDetail = getBookingDetail(bookingId);
         return pdfGeneratorService.generateBookingInvoice(bookingDetail);
+    }
+
+    @Override
+    public void cancelBooking(Long bookingId) {
+        Booking booking = getBookingById(bookingId);
+        List<Room> rooms = roomRepository.findAllById(booking.getRooms().stream()
+                        .map(Room::getRoomid)
+                        .collect(Collectors.toList()));
+
+        Date nowDate = new Date();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+
+        System.out.println(sdf.format(nowDate));
+
+        if(sdf.format(booking.getBookingdate()).equals(sdf.format(nowDate))){
+            System.out.println(nowDate);
+            rooms.forEach(room -> {
+                room.setStatus(RoomStatus.EMPTY);
+                room.setBookingId(null);
+            });
+
+            roomRepository.saveAll(rooms);
+            bookingRepository.delete(booking);
+
+        }
+
     }
 
     private Booking getBookingById(long bookingId) {

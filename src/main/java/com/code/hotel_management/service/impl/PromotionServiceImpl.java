@@ -1,6 +1,7 @@
 package com.code.hotel_management.service.impl;
 
 import com.code.hotel_management.dto.request.PromotionRequestDTO;
+import com.code.hotel_management.exception.ResourceNotFoundException;
 import com.code.hotel_management.model.Promotion;
 import com.code.hotel_management.repository.PromotionRepository;
 import com.code.hotel_management.service.PromotionService;
@@ -36,5 +37,15 @@ public class PromotionServiceImpl implements PromotionService {
         promotionRepository.save(promotion);
 
         return promotion;
+    }
+
+    @Override
+    public void deletePromotion(Long promotionId) {
+        Promotion promotion = promotionRepository.findById(promotionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Promotion not found"));
+
+        if(promotion.getEndDate().before(new Date())){
+            promotionRepository.delete(promotion);
+        }
     }
 }

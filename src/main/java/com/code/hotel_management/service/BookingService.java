@@ -22,4 +22,6 @@ public interface BookingService {
      BookingDetailResponse getBookingDetail(Long bookingId);
 
      byte[] generateBookingInvoice(Long bookingId) throws IOException, DocumentException;
+
+     void cancelBooking(Long bookingId);
 }

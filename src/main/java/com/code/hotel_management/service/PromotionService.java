@@ -10,4 +10,6 @@ public interface PromotionService {
     List<Promotion> findValidPromotions(Date bookingDate);
 
     Promotion createPromotion(PromotionRequestDTO requestDTO);
+
+    void deletePromotion(Long promotionId);
 }

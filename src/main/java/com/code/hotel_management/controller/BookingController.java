@@ -74,4 +74,11 @@ public class BookingController {
 
         return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
     }
+
+    // cancel booking
+    @DeleteMapping("/{bookingId}")
+    public ResponseData<Void> cancelBooking(@PathVariable Long bookingId) {
+        bookingService.cancelBooking(bookingId);
+        return new ResponseData<>(HttpStatus.CREATED.value(), "cancel success");
+    }
 }
