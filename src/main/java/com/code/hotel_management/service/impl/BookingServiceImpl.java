@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -185,26 +186,77 @@ public class BookingServiceImpl implements BookingService {
         bookingRepository.save(booking);
     }
 
+//    @Override
+//    public BookingDetailResponse getBookingDetail(Long bookingId) {
+//        Booking booking = bookingRepository.findById(bookingId)
+//                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+//
+//        return BookingDetailResponse.builder()
+//                .bookingId(booking.getBookingId())
+//                .name(booking.getUser().getName())
+//                .userId(booking.getUser().getUserID())
+//                .roomIds(booking.getRooms().stream()
+//                        .map(Room::getRoomid)
+//                        .collect(Collectors.toList()))
+//                .prices(booking.getRooms().stream()
+//                        .map(Room::getPrice)
+//                        .collect(Collectors.toList()))
+//                .checkinDate(booking.getCheckindate())
+//                .checkoutDate(booking.getCheckoutdate())
+//                .bookingDate(booking.getBookingdate())
+//                .totalMoney(booking.getTotalmoney())
+//                .build();
+//    }
+
     @Override
     public BookingDetailResponse getBookingDetail(Long bookingId) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+        StoredProcedureQuery query = entityManager.createStoredProcedureQuery("get_booking_detail")
+                .registerStoredProcedureParameter("p_booking_id", Long.class, ParameterMode.IN)
+                .registerStoredProcedureParameter("p_result_booking_id", Long.class, ParameterMode.OUT)
+                .registerStoredProcedureParameter("p_name", String.class, ParameterMode.OUT)
+                .registerStoredProcedureParameter("p_user_id", Long.class, ParameterMode.OUT)
+                .registerStoredProcedureParameter("p_room_ids", Long[].class, ParameterMode.OUT)
+                .registerStoredProcedureParameter("p_prices", BigDecimal[].class, ParameterMode.OUT)
+                .registerStoredProcedureParameter("p_checkin_date", java.sql.Date.class, ParameterMode.OUT)
+                .registerStoredProcedureParameter("p_checkout_date", java.sql.Date.class, ParameterMode.OUT)
+                .registerStoredProcedureParameter("p_booking_date", java.sql.Date.class, ParameterMode.OUT)
+                .registerStoredProcedureParameter("p_total_money", BigDecimal.class, ParameterMode.OUT)
+                .setParameter("p_booking_id", bookingId);
 
-        return BookingDetailResponse.builder()
-                .bookingId(booking.getBookingId())
-                .name(booking.getUser().getName())
-                .userId(booking.getUser().getUserID())
-                .roomIds(booking.getRooms().stream()
-                        .map(Room::getRoomid)
-                        .collect(Collectors.toList()))
-                .prices(booking.getRooms().stream()
-                        .map(Room::getPrice)
-                        .collect(Collectors.toList()))
-                .checkinDate(booking.getCheckindate())
-                .checkoutDate(booking.getCheckoutdate())
-                .bookingDate(booking.getBookingdate())
-                .totalMoney(booking.getTotalmoney())
-                .build();
+        try {
+            query.execute();
+
+            Long resultBookingId = (Long) query.getOutputParameterValue("p_result_booking_id");
+            if (resultBookingId == null) {
+                throw new ResourceNotFoundException("Booking not found");
+            }
+
+            String name = (String) query.getOutputParameterValue("p_name");
+            Long userId = (Long) query.getOutputParameterValue("p_user_id");
+            Long[] roomIds = (Long[]) query.getOutputParameterValue("p_room_ids");
+            BigDecimal[] prices = (BigDecimal[]) query.getOutputParameterValue("p_prices");
+            java.sql.Date checkinDate = (java.sql.Date) query.getOutputParameterValue("p_checkin_date");
+            java.sql.Date checkoutDate = (java.sql.Date) query.getOutputParameterValue("p_checkout_date");
+            java.sql.Date bookingDate = (java.sql.Date) query.getOutputParameterValue("p_booking_date");
+            BigDecimal totalMoney = (BigDecimal) query.getOutputParameterValue("p_total_money");
+
+            List<Long> roomIdList = Arrays.asList(roomIds);
+            List<BigDecimal> priceList = Arrays.asList(prices);
+
+            return BookingDetailResponse.builder()
+                    .bookingId(resultBookingId)
+                    .name(name)
+                    .userId(userId)
+                    .roomIds(roomIdList)
+                    .prices(priceList)
+                    .checkinDate(checkinDate)
+                    .checkoutDate(checkoutDate)
+                    .bookingDate(bookingDate)
+                    .totalMoney(totalMoney)
+                    .build();
+        } catch (Exception e) {
+            throw new ResourceNotFoundException("Error retrieving booking details: " + e.getMessage());
+        }
     }
 
     @Autowired
